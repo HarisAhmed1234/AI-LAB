@@ -2,60 +2,53 @@ import random
 from typing import Dict
 
 class BackupManager:
-    def __init__(self, task_count=5):
-        self.tasks = self.initialize_tasks(task_count)
-        self.retry_attempts = {}
+    def __init__(self, task_count: int = 5):
+        self.tasks = self._initialize_tasks(task_count)
+        self.retry_attempts: Dict[str, int] = {}
 
-    def initialize_tasks(self, count: int) -> Dict[str, str]:
-        return {f"Backup-{i+1}": random.choice(["Completed", "Failed"]) 
-                for i in range(count)}
+    def _initialize_tasks(self, count: int) -> Dict[str, str]:
+        return {f"Task-{i+1}": random.choice(["Completed", "Failed"]) for i in range(count)}
 
-    def scan_tasks(self) -> list:
-        return [task_id for task_id, status in self.tasks.items() 
-                if status == "Failed"]
+    def scan_failed_tasks(self) -> list:
+        return [task for task, status in self.tasks.items() if status == "Failed"]
 
-    def retry_failed(self, success_prob=0.75):
-        failed = self.scan_tasks()
-        if not failed:
-            return "No failed backups detected"
-        
-        print("\n⚙️ Backup Retry Procedure:")
-        for task_id in failed:
-            self.retry_attempts[task_id] = self.retry_attempts.get(task_id, 0) + 1
-            self.tasks[task_id] = "Completed" if random.random() < success_prob else "Failed"
-            status_symbol = "✓" if self.tasks[task_id] == "Completed" else "✗"
-            print(f" - {task_id}: Attempt {self.retry_attempts[task_id]} → {status_symbol}")
+    def retry_failed_backups(self, success_prob: float = 0.75):
+        failed_tasks = self.scan_failed_tasks()
+        if not failed_tasks:
+            print("All backups are already completed successfully.")
+            return
+
+        print("\nRetrying failed backups:")
+        for task in failed_tasks:
+            self.retry_attempts[task] = self.retry_attempts.get(task, 0) + 1
+            self.tasks[task] = "Completed" if random.random() < success_prob else "Failed"
+            print(f"- {task}: Attempt {self.retry_attempts[task]} → {self.tasks[task]}")
 
     def display_status(self):
-        max_width = max(len(task_id) for task_id in self.tasks)
-        header = f"\n{'BACKUP TASK':<{max_width}} | STATUS   | ATTEMPTS"
-        print(header)
-        print("-" * len(header))
-        
-        for task_id in self.tasks:
-            attempts = self.retry_attempts.get(task_id, 0)
-            status = self.tasks[task_id]
-            symbol = "✓" if status == "Completed" else "✗"
-            print(f"{task_id:<{max_width}} | {symbol} {status:<6} | {attempts}")
+        max_task_width = max(len(task) for task in self.tasks)
+        print(f"\n{'Backup Task':<{max_task_width}} | Status     | Attempts")
+        print("-" * (max_task_width + 20))
+        for task, status in self.tasks.items():
+            attempts = self.retry_attempts.get(task, 0)
+            print(f"{task:<{max_task_width}} | {status:<10} | {attempts}")
 
 def main():
     random.seed(42)  # For reproducible results
     manager = BackupManager(task_count=7)
-    
+
     print("Initial Backup Status:")
     manager.display_status()
-    
-    if manager.scan_tasks():
-        manager.retry_failed(success_prob=0.65)
+
+    if manager.scan_failed_tasks():
+        manager.retry_failed_backups(success_prob=0.7)
     else:
-        print("\nAll backups completed successfully!")
-    
-    print("\nFinal Backup Report:")
+        print("\nNo failed backups to retry.")
+
+    print("\nFinal Backup Status:")
     manager.display_status()
-    
-    success_count = sum(1 for s in manager.tasks.values() if s == "Completed")
-    print(f"\nSuccess Rate: {success_count}/{len(manager.tasks)} "
-          f"({success_count/len(manager.tasks):.0%})")
+
+    success_count = sum(1 for status in manager.tasks.values() if status == "Completed")
+    print(f"\nSuccess Rate: {success_count}/{len(manager.tasks)} ({success_count/len(manager.tasks):.0%})")
 
 if __name__ == "__main__":
     main()
